@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "strict": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "outDir": "dist",
+    "types": ["@webgpu/types"],
+  },
+  "include": ["src"]
+}
