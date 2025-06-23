@@ -14,5 +14,9 @@
           "@webgpu/types": "^0.1.61",
           "esbuild": "^0.25.5",
           "typescript": "^5.8.3"
+     },
+     "dependencies": {
+          "bitecs": "^0.3.40",
+          "gl-matrix": "^3.4.3"
      }
 }
