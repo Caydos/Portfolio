@@ -1,12 +1,20 @@
 import { createCubeGeometry } from '../../game/geometry/cube';
 import { renderState } from './state';
 import { mat4 } from 'gl-matrix';
+import { generateTesseractEdges, generateTesseractVertices, projectTo3D } from './tesseract';
+import { Camera } from './camera';
 
 
-let device: GPUDevice;
-let context: GPUCanvasContext;
-let format: GPUTextureFormat;
-
+export let device: GPUDevice;
+export let context: GPUCanvasContext;
+export let format: GPUTextureFormat;
+export let pipeline!: GPURenderPipeline;
+export let vertexBuffer!: GPUBuffer;
+export let uniformBuffer!: GPUBuffer;
+export let bindGroup!: GPUBindGroup;
+export let vertexCount = 0;
+export let camera: Camera;
+export let keys = new Set<string>();
 
 function setupMouse() {
   const canvas = document.getElementById('webgpu-canvas') as HTMLCanvasElement;
@@ -51,97 +59,74 @@ export async function init() {
     format,
     alphaMode: "opaque",
   });
-  setupMouse();
+  // setupMouse();
+
+  window.addEventListener('keydown', (e) => keys.add(e.key));
+  window.addEventListener('keyup', (e) => keys.delete(e.key));
 
 
 
-
-
-
+  camera = new Camera();
   // Will need to be moved out of here
   const res = await fetch('dist/shaders/shader.wgsl');
   const code = await res.text();
 
-  const shader = device.createShaderModule({ code });
-  const pipeline = device.createRenderPipeline({
-    layout: 'auto',
-    vertex: {
-      module: shader,
-      entryPoint: 'vs_main',
-      buffers: [
-        {
-          arrayStride: 4 * 3,
-          attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }],
-        },
-      ],
-    },
-    fragment: {
-      module: shader,
-      entryPoint: 'fs_main',
-      targets: [{ format }],
-    },
-    primitive: {
-      topology: 'triangle-list',
-      cullMode: 'back',
-    },
-    depthStencil: {
-      format: 'depth24plus',
-      depthWriteEnabled: true,
-      depthCompare: 'less',
-    },
-  });
+  const vertices4D = generateTesseractVertices();
+  const edges = generateTesseractEdges();
 
-  const depthTexture = device.createTexture({
-    size: [canvas.width, canvas.height],
-    format: 'depth24plus',
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
-  });
+  const edgeVertices: number[] = [];
 
-  const { vertexData, indexData } = createCubeGeometry();
-  const vertexBuffer = device.createBuffer({
-    size: vertexData.byteLength,
+  for (const [i, j] of edges) {
+    const v1 = projectTo3D(vertices4D[i]);
+    const v2 = projectTo3D(vertices4D[j]);
+    edgeVertices.push(...v1, ...v2);
+  }
+
+  vertexCount = edgeVertices.length / 3;
+
+  vertexBuffer = device.createBuffer({
+    size: edgeVertices.length * 4,
     usage: GPUBufferUsage.VERTEX,
     mappedAtCreation: true,
   });
-  new Float32Array(vertexBuffer.getMappedRange()).set(vertexData);
+  new Float32Array(vertexBuffer.getMappedRange()).set(edgeVertices);
   vertexBuffer.unmap();
 
-  const indexBuffer = device.createBuffer({
-    size: indexData.byteLength,
-    usage: GPUBufferUsage.INDEX,
-    mappedAtCreation: true,
-  });
-  new Uint16Array(indexBuffer.getMappedRange()).set(indexData);
-  indexBuffer.unmap();
-
-  Object.assign(renderState, {
-    device,
-    context,
-    pipeline,
-    vertexBuffer,
-    indexBuffer,
-    depthTexture,
-  });
-
-  const uniformBuffer = device.createBuffer({
-    size: 64, // 4x4 matrix
+  uniformBuffer = device.createBuffer({
+    size: 64,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  const uniformBindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: uniformBuffer,
-        },
-      },
-    ],
+  const shaderModule = device.createShaderModule({
+    code: code,
   });
 
-  Object.assign(renderState, {
-    uniformBuffer,
-    uniformBindGroup,
+  pipeline = device.createRenderPipeline({
+    layout: "auto",
+    vertex: {
+      module: shaderModule,
+      entryPoint: "vs_main",
+      buffers: [{
+        arrayStride: 12,
+        attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }],
+      }],
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: "fs_main",
+      targets: [{ format: 'bgra8unorm' }],
+    },
+    primitive: {
+      topology: 'line-list',
+    },
+  });
+
+  const bindGroupLayout = pipeline.getBindGroupLayout(0);
+  bindGroup = device.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [{
+      binding: 0,
+      resource: { buffer: uniformBuffer },
+    }],
   });
 }

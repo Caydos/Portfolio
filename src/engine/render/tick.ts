@@ -1,52 +1,47 @@
 import { render } from '.';
+import { device, bindGroup, pipeline, uniformBuffer, vertexBuffer, vertexCount, context, camera, keys } from './init';
 import { renderState } from './state';
 import { mat4 } from 'gl-matrix';
 
+function handleCameraInput() {
+  if (keys.has('w')) camera.moveForward();
+  if (keys.has('s')) camera.moveBackward();
+  if (keys.has('a')) camera.moveLeft();
+  if (keys.has('d')) camera.moveRight();
+  if (keys.has('ArrowLeft')) camera.lookLeft();
+  if (keys.has('ArrowRight')) camera.lookRight();
+  if (keys.has('ArrowUp')) camera.lookUp();
+  if (keys.has('ArrowDown')) camera.lookDown();
+}
+
 export function tick(delta: number) {
      // console.log(`Rendering frame with dt: ${delta}`);
-      const { device, context, pipeline, vertexBuffer, indexBuffer, depthTexture, uniformBuffer, uniformBindGroup } = renderState;
-  if (!device || !context || !pipeline) return;
-
-  const model = mat4.create();
-  mat4.rotateX(model, model, renderState.rotation.y);
-  mat4.rotateY(model, model, renderState.rotation.x);
-
-  const view = mat4.create();
-  mat4.lookAt(view, [0, 0, 4], [0, 0, 0], [0, 1, 0]);
-
-  const proj = mat4.create();
-  const aspect = (context as any).canvas.width / (context as any).canvas.height;
-  mat4.perspective(proj, Math.PI / 4, aspect, 0.1, 100);
-
-  mat4.multiply(renderState.mvpMatrix, proj, view);
-  mat4.multiply(renderState.mvpMatrix, renderState.mvpMatrix, model);
-
-  device.queue.writeBuffer(uniformBuffer!, 0, renderState.mvpMatrix as Float32Array);
-
-  const encoder = device.createCommandEncoder();
-  const pass = encoder.beginRenderPass({
-    colorAttachments: [
-      {
-        view: context.getCurrentTexture().createView(),
-        loadOp: 'clear',
-        clearValue: { r: 0.1, g: 0.1, b: 0.2, a: 1 },
-        storeOp: 'store',
-      },
-    ],
-    depthStencilAttachment: {
-      view: depthTexture!.createView(),
-      depthLoadOp: 'clear',
-      depthClearValue: 1.0,
-      depthStoreOp: 'store',
-    },
+     handleCameraInput();
+       const textureView = context.getCurrentTexture().createView();
+  const commandEncoder = device.createCommandEncoder();
+  const pass = commandEncoder.beginRenderPass({
+    colorAttachments: [{
+      view: textureView,
+      loadOp: 'clear',
+      storeOp: 'store',
+      clearValue: { r: 0, g: 0, b: 0, a: 1 },
+    }],
   });
 
-  pass.setPipeline(pipeline!);
-  pass.setBindGroup(0, uniformBindGroup!);
-  pass.setVertexBuffer(0, vertexBuffer!);
-  pass.setIndexBuffer(indexBuffer!, 'uint16');
-  pass.drawIndexed(36);
-  pass.end();
+  const aspect = context.canvas.width / context.canvas.height;
+  const projMatrix = mat4.perspective(mat4.create(), Math.PI / 4, aspect, 0.1, 100);
+  const viewMatrix = camera.getViewMatrix();
 
-  device.queue.submit([encoder.finish()]);
+
+  const vp = mat4.create();
+  mat4.multiply(vp, projMatrix, viewMatrix);
+  device.queue.writeBuffer(uniformBuffer, 0, vp as Float32Array);
+  
+  pass.setPipeline(pipeline);
+  pass.setVertexBuffer(0, vertexBuffer);
+  pass.setBindGroup(0, bindGroup);
+  pass.draw(vertexCount);
+  pass.end();
+  device.queue.submit([commandEncoder.finish()]);
+  
 }
