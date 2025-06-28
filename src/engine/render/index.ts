@@ -1,17 +1,17 @@
 import { init } from "./init";
 import { tick } from "./tick";
-import { renderState } from "./state";
+import { renderData } from "./data";
 
 export const render = {
      init,
      tick,
      get device() {
-          return renderState.device!;
+          return renderData.device!;
      },
      get context() {
-          return renderState.context!;
+          return renderData.context!;
      },
      get format() {
-          return renderState.format!;
+          return renderData.format!;
      },
 };
