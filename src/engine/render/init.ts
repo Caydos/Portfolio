@@ -1,7 +1,14 @@
-import { createCubeGeometry } from '../../game/geometry/cube';
+import * as cube from '../../game/geometry/cube';
 import { renderData } from './data';
 import { mat4 } from 'gl-matrix';
 import * as pipelines from './pipelines';
+import { addComponent, addEntity } from 'bitecs';
+import { initializeWorld, world } from '../../game/world';
+import { Transform } from '../../game/components/transform';
+import { Renderable } from '../../game/components/renderInstance';
+import { MeshManager } from './classes/mesh';
+import { render } from '.';
+import { Camera } from '../../game/camera';
 
 // function setupMouse() {
 //   const canvas = document.getElementById('webgpu-canvas') as HTMLCanvasElement;
@@ -45,7 +52,14 @@ export async function init() {
     format: renderData.format,
     alphaMode: "opaque",
   });
-
-
+  renderData.camera = new Camera(45, renderData.canvas.width / renderData.canvas.height);
+  renderData.meshManager = new MeshManager(render.device);
   await pipelines.initialize();
+
+  let id = renderData.meshManager?.registerMesh(cube.createMesh(renderData.device));
+  if (id == undefined) {
+    console.log(`[render.ts::init] - Failed to generate cube mesh`);
+    return;
+  }
+  initializeWorld(id);
 }

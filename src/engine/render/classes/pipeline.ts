@@ -8,19 +8,22 @@ export class Pipeline {
     private depthTextureView: GPUTextureView;
     private passes: Map<number, Pass> = new Map();
 
-    constructor(private device: GPUDevice, private width = 1024, private height = 1024) {
-        // Initialize the depth texture for the pipeline (shared by all passes)
-        this.depthTexture = this.createDepthTexture();
+    constructor(public device: GPUDevice, canvas: HTMLCanvasElement) {
+        const width = canvas.width;
+        const height = canvas.height;
+        this.depthTexture = this.createDepthTexture(width, height);
         this.depthTextureView = this.depthTexture.createView();
     }
 
-    private createDepthTexture(): GPUTexture {
+
+    private createDepthTexture(width: number, height: number): GPUTexture {
         return this.device.createTexture({
-            size: { width: this.width, height: this.height },
+            size: { width, height },
             format: 'depth24plus',
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
         });
     }
+
 
 
     public getDepthTextureView(): GPUTextureView {
@@ -33,5 +36,5 @@ export class Pipeline {
     public getPass(id: number): Pass | undefined {
         return this.passes.get(id);
     }
-    public tick(delta: number){}
+    public tick(delta: number, passEncoder: GPURenderPassEncoder) { }
 }

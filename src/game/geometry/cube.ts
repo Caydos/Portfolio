@@ -1,34 +1,63 @@
-export function createCubeGeometry() {
-  const positions = [
-    // front
-    -1, -1,  1,
-     1, -1,  1,
-     1,  1,  1,
-    -1,  1,  1,
-    // back
-    -1, -1, -1,
-     1, -1, -1,
-     1,  1, -1,
-    -1,  1, -1,
-  ];
+export function createMesh(device: GPUDevice): { vertexBuffer: GPUBuffer, indexBuffer: GPUBuffer, indexCount: number } {
+  const vertexData = new Float32Array([
+    // X, Y, Z
+    -1, -1, 1,  // front
+    1, -1, 1,
+    1, 1, 1,
+    -1, 1, 1,
+    -1, -1, -1,  // back
+    1, -1, -1,
+    1, 1, -1,
+    -1, 1, -1,
+  ]);
 
-  const indices = [
-    // front
-    0, 1, 2, 0, 2, 3,
-    // right
-    1, 5, 6, 1, 6, 2,
-    // back
-    5, 4, 7, 5, 7, 6,
-    // left
-    4, 0, 3, 4, 3, 7,
-    // top
-    3, 2, 6, 3, 6, 7,
-    // bottom
-    4, 5, 1, 4, 1, 0,
-  ];
+  const indexData = new Uint16Array([
+    // Front face (Z+)
+    0, 1, 2,
+    2, 3, 0,
+
+    // Back face (Z-)
+    5, 4, 7,
+    7, 6, 5,
+
+    // Left face (X-)
+    4, 0, 3,
+    3, 7, 4,
+
+    // Right face (X+)
+    1, 5, 6,
+    6, 2, 1,
+
+    // Top face (Y+)
+    3, 2, 6,
+    6, 7, 3,
+
+    // Bottom face (Y-)
+    4, 5, 1,
+    1, 0, 4
+  ]);
+
+
+
+  const vertexBuffer = device.createBuffer({
+    size: vertexData.byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    mappedAtCreation: true,
+  });
+  new Float32Array(vertexBuffer.getMappedRange()).set(vertexData);
+  vertexBuffer.unmap();
+
+  const indexBuffer = device.createBuffer({
+    size: indexData.byteLength,
+    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+    mappedAtCreation: true,
+  });
+  new Uint16Array(indexBuffer.getMappedRange()).set(indexData);
+  indexBuffer.unmap();
 
   return {
-    vertexData: new Float32Array(positions),
-    indexData: new Uint16Array(indices),
+    vertexBuffer,
+    indexBuffer,
+    indexCount: indexData.length,
   };
 }
