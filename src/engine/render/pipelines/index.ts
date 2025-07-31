@@ -14,11 +14,11 @@ export async function initialize() {
     const code = await res.text();
     voxelPipeline.addPass(VoxelPassType.MAIN, code, code);
 
-    // Allocate 2 mat4 = 2 * 64 = 128 bytes
-    voxelPipeline.uniformBuffer = voxelPipeline.device.createBuffer({
-        size: 128,
+    voxelPipeline.globalUniformBuffer = device!.createBuffer({
+        size: 64, // one mat4 = 16 floats * 4 bytes -> GlobalUniforms
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+
     const bindGroupLayout = voxelPipeline.getPass(0)!.getPipeline().getBindGroupLayout(0);
 
     voxelPipeline.bindGroup = voxelPipeline.device.createBindGroup({
@@ -27,11 +27,31 @@ export async function initialize() {
             {
                 binding: 0,
                 resource: {
-                    buffer: voxelPipeline.uniformBuffer,
+                    buffer: voxelPipeline.globalUniformBuffer,
                 },
             },
         ],
     });
+
+    voxelPipeline.modelUniformBuffer = device!.createBuffer({
+        size: 64, // 4x4 matrix
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+
+    const modelBindGroupLayout = voxelPipeline.getPass(0)!.getPipeline().getBindGroupLayout(1);
+
+    voxelPipeline.modelBindGroup = device!.createBindGroup({
+        layout: modelBindGroupLayout,
+        entries: [
+            {
+                binding: 0,
+                resource: {
+                    buffer: voxelPipeline.modelUniformBuffer,
+                },
+            },
+        ],
+    });
+
 }
 
 export function tick(delta: number) {

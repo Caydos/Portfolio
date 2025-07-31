@@ -61,5 +61,7 @@ export async function init() {
     console.log(`[render.ts::init] - Failed to generate cube mesh`);
     return;
   }
-  initializeWorld(id);
+  const modelBindGroupLayout = pipelines.voxelPipeline.getPass(0)!.getPipeline().getBindGroupLayout(1);
+
+  initializeWorld(id, modelBindGroupLayout);
 }

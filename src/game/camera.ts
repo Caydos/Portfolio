@@ -17,6 +17,7 @@ export class Camera {
   public far = 100;
 
   private speed = 5; // units per second
+  private sprintMultiplier = 2.5;
   private sensitivity = 0.002;
 
   // Input state
@@ -69,7 +70,7 @@ export class Camera {
 
   public update(deltaTime: number) {
     this.aspect = renderData.canvas!.width / renderData.canvas!.height;
-    const velocity = this.speed * deltaTime;
+    let velocity = this.speed * deltaTime;
 
     // Calculate direction vector from yaw and pitch (for both view and movement)
     const forward = vec3.fromValues(
@@ -88,6 +89,9 @@ export class Camera {
     vec3.normalize(right, right);
 
     // WASD movement
+    if (this.keysPressed.has('shift')) {
+      velocity *= this.sprintMultiplier;
+    }
     if (this.keysPressed.has('w')) {
       vec3.scaleAndAdd(this.position, this.position, forward, velocity);
     }
