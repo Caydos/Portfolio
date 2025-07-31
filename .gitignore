@@ -1,4 +1,6 @@
 node_modules/
-dist/
+dist/*
+!dist/shaders/
+!dist/shaders/**
 .vscode/
 .DS_Store
