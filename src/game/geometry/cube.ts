@@ -1,14 +1,14 @@
 export function createMesh(device: GPUDevice): { vertexBuffer: GPUBuffer, indexBuffer: GPUBuffer, indexCount: number } {
   const vertexData = new Float32Array([
     // X, Y, Z
-    -1, -1, 1,  // front
-    1, -1, 1,
-    1, 1, 1,
-    -1, 1, 1,
-    -1, -1, -1,  // back
-    1, -1, -1,
-    1, 1, -1,
-    -1, 1, -1,
+    -0.5, -0.5, 0.5,  // front
+    0.5, -0.5, 0.5,
+    0.5, 0.5, 0.5,
+    -0.5, 0.5, 0.5,
+    -0.5, -0.5, -0.5,  // back
+    0.5, -0.5, -0.5,
+    0.5, 0.5, -0.5,
+    -0.5, 0.5, -0.5,
   ]);
 
   const indexData = new Uint16Array([
