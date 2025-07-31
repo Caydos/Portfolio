@@ -21,17 +21,18 @@ fn vs_main(
     @builtin(instance_index) instanceIndex: u32
 ) -> VertexOutput {
     var output: VertexOutput;
-    const hardcodedOffset: f32 = -12.0;
-    let gx = hardcodedOffset * f32(instanceIndex);
-    let gy = hardcodedOffset * f32(instanceIndex);
-    let gz = hardcodedOffset * f32(instanceIndex);
+    var offset = vec3<f32>(.0, .0, .0);
+    if instanceIndex > 0 {
+        let finalIndex = i32(instanceIndex) - 1;
+        let directionIndex: i32 = finalIndex % 8;
+        let timesUsed = finalIndex / 8 + 1;
 
-    let offset = vec3<f32>(
-        f32(gx),
-        f32(gy),
-        f32(gz)
-    );
+        offset.x = select(12.0, -12.0, (directionIndex & 4) != 0);
+        offset.y = select(12.0, -12.0, (directionIndex & 2) != 0);
+        offset.z = select(12.0, -12.0, (directionIndex & 1) != 0);
 
+        offset *= f32(timesUsed);
+    }
 
     let worldPosition = (object.modelMatrix * vec4<f32>(position, 1.0)).xyz + offset;
 
