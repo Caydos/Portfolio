@@ -10,6 +10,9 @@ function loop(time: DOMHighResTimeStamp) {
   lastTime = time;
 
   render.tick(delta);
+  
+  const fps = 1 / delta;
+  document.title = `FPS: ${fps.toFixed(1)}`;
   requestAnimationFrame(loop);
 }
 
