@@ -15,7 +15,7 @@ export async function initialize() {
      voxelPipeline.addPass(VoxelPassType.MAIN, code, code);
 
      voxelPipeline.globalUniformBuffer = device!.createBuffer({
-          size: 80, // matrix + camera position + padding
+          size: 96,
           usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
      });
 
@@ -37,7 +37,7 @@ export async function initialize() {
      });
 
      voxelPipeline.modelUniformBuffer = device!.createBuffer({
-          size: 64, // 4x4 matrix
+          size: 80, // 4x4 matrix
           usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
      });
 
@@ -45,7 +45,7 @@ export async function initialize() {
           .getPass(0)!
           .getPipeline()
           .getBindGroupLayout(1);
-
+     
      voxelPipeline.modelBindGroup = device!.createBindGroup({
           layout: modelBindGroupLayout,
           entries: [

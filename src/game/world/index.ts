@@ -40,7 +40,7 @@ export function spawnCubes(
     const modelMatrix = createModelMatrix(x, y, z);
 
     const uniformBuffer = device.createBuffer({
-      size: 64,
+      size: 80,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 

@@ -1,12 +1,13 @@
 struct GlobalUniforms {
-    viewProjMatrix: mat4x4<f32>,
-    cameraWorldPos: vec3<f32>,
-    _padding: f32, // 16 byte alignment
-};
+    viewProjMatrix: mat4x4<f32>, // 64 bytes
+    cameraWorldPos: vec3<f32>, // 16 bytes
+    time: f32, // 4 bytes
+};// aligned on 96 bytes
 
 struct ObjectUniforms {
-    modelMatrix: mat4x4<f32>,
-};
+    modelMatrix: mat4x4<f32>, // 64 bytes
+    edgeMask: u32,            // 4 bytes
+};// aligned on 80 bytes
 
 @group(0) @binding(0) var<uniform> global : GlobalUniforms;
 @group(1) @binding(0) var<uniform> object : ObjectUniforms;
@@ -69,29 +70,47 @@ fn vs_main(
     return output;
 }
 
+
+
 @fragment
-fn fs_main(@location(0) worldPos: vec3<f32>, @location(1) localPos: vec3<f32>) -> @location(0) vec4<f32> {
-  // Parameters
-  let edgeWidth: f32 = 0.02;
-  let glowFalloff: f32 = 0.01;
+fn fs_main(
+    @location(0) worldPos: vec3<f32>,
+    @location(1) localPos: vec3<f32>
+) -> @location(0) vec4<f32> {
+    let edgeWidth: f32 = 0.02;
+    let glowFalloff: f32 = 0.01;
 
-  let aPos = abs(localPos);
+    let aPos = abs(localPos);
 
-  let dx = 0.4 - aPos.x;
-  let dy = 0.4 - aPos.y;
-  let dz = 0.4 - aPos.z;
+    let dx = 0.4 - aPos.x;
+    let dy = 0.4 - aPos.y;
+    let dz = 0.4 - aPos.z;
 
-  let gx = smoothstep(edgeWidth + glowFalloff, glowFalloff, dx);
-  let gy = smoothstep(edgeWidth + glowFalloff, glowFalloff, dy);
-  let gz = smoothstep(edgeWidth + glowFalloff, glowFalloff, dz);
+    let gx = smoothstep(edgeWidth + glowFalloff, glowFalloff, dx);
+    let gy = smoothstep(edgeWidth + glowFalloff, glowFalloff, dy);
+    let gz = smoothstep(edgeWidth + glowFalloff, glowFalloff, dz);
 
-  let edgeGlow = gx * gy + gx * gz + gy * gz;
+    let edgeGlowX = gx * gy; // edges parallel to Z
+    let edgeGlowY = gx * gz; // edges parallel to Y
+    let edgeGlowZ = gy * gz; // edges parallel to X
 
-  let baseColor = vec3<f32>(0.0, 0.0, 0.0);
+    let mask = object.edgeMask;
+    // let glowMaskX = f32((mask & 1u) != 0u);
+    // let glowMaskY = f32((mask & 2u) != 0u);
+    // let glowMaskZ = f32((mask & 4u) != 0u);
 
-  let edgeColor = vec3<f32>(0.1, 0.9, 1.0);
+    // let edgeGlow = edgeGlowX * glowMaskX +
+    //                edgeGlowY * glowMaskY +
+    //                edgeGlowZ * glowMaskZ;
 
-  let finalColor = mix(baseColor, edgeColor, edgeGlow);
+    let edgeGlow = edgeGlowX * 1.0 +
+                   edgeGlowY * 1.0 +
+                   edgeGlowZ * 1.0;
 
-  return vec4<f32>(finalColor, 1.0);
+    let baseColor = vec3<f32>(0.0, 0.0, 0.0);
+    let edgeColor = vec3<f32>(0.1, 0.9, 1.0);
+
+    let finalColor = mix(baseColor, edgeColor, edgeGlow);
+
+    return vec4<f32>(finalColor, 1.0);
 }
