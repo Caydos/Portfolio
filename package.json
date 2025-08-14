@@ -5,7 +5,8 @@
      "main": "index.js",
      "scripts": {
           "test": "echo \"Error: no test specified\" && exit 1",
-          "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --target=es2020"
+          "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --target=es2020",
+          "start": "esbuild --watch src/index.ts --bundle --outfile=dist/index.js --target=es2020"
      },
      "keywords": [],
      "author": "",
