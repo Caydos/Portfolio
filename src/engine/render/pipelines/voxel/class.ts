@@ -6,6 +6,7 @@ import { bindGroups, uniformBuffers, world } from "../../../../game/world";
 import { renderData } from "../../data";
 import { mat4 } from "gl-matrix";
 import { VoxelPassType } from "./passes/enum";
+import { GlowyEdge, GlowyEdgeMask } from "../../../../game/components/glowyEdge";
 
 const query = defineQuery([Transform, Renderable]);
 export function createModelMatrix(
@@ -17,11 +18,7 @@ export function createModelMatrix(
      mat4.translate(out, out, [x, y, z]);
      return out as Float32Array;
 }
-enum EdgeMask {
-     X = 1 << 0, // edges parallel to Z
-     Y = 1 << 1, // edges parallel to X
-     Z = 1 << 2, // edges parallel to Y
-}
+
 
 export class VoxelPipeline extends Pipeline {
      public globalUniformBuffer!: GPUBuffer;
@@ -87,7 +84,6 @@ export class VoxelPipeline extends Pipeline {
                     console.warn(`Missing GPU resources for entity ${eid}`);
                     continue;
                }
-               const mask = EdgeMask.X | EdgeMask.Z; // glow only X and Z edges
 
                // console.log(`Drawing cube at : ${Transform.x[eid]},${Transform.y[eid]},${Transform.z[eid]}`);
                const modelMatrix = createModelMatrix(
@@ -96,16 +92,13 @@ export class VoxelPipeline extends Pipeline {
                     Transform.z[eid]
                ) as Float32Array;
 
-               // Allocate full 96 bytes (24 floats = 96 bytes)
                const objectUniformData = new ArrayBuffer(80);
                const f32View = new Float32Array(objectUniformData);
                const u32View = new Uint32Array(objectUniformData);
 
-               // Write matrix (first 16 floats = 64 bytes)
                f32View.set(modelMatrix, 0);
 
-               // Write mask as uint32 at float index 16 (offset 64 bytes)
-               u32View[16] = mask;
+               u32View[16] = GlowyEdge.mask[eid];
 
                this.device.queue.writeBuffer(
                     uniformBuffer,
@@ -122,7 +115,7 @@ export class VoxelPipeline extends Pipeline {
                passEncoder.setBindGroup(1, bindGroup);
                passEncoder.setVertexBuffer(0, mesh.vertexBuffer);
                passEncoder.setIndexBuffer(mesh.indexBuffer, "uint16");
-               passEncoder.drawIndexed(mesh.indexCount, 585);
+               passEncoder.drawIndexed(mesh.indexCount, 585);//585
           }
      }
 }
