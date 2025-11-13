@@ -102,7 +102,23 @@ fn edge_weights(aPos: vec3<f32>, radius: f32, width: f32, falloff: f32) -> vec3<
     let wX = g.y * g.z; // || X
     return vec3<f32>(wX, wY, wZ);
 }
+fn camera_light_factor(worldPos: vec3<f32>) -> f32 {
+    // Distance from camera
+    let dist = distance(worldPos, global.cameraWorldPos);
 
+    // Range settings – tweak to taste
+    let innerRadius: f32 = 4.0;   // bright up close
+    let outerRadius: f32 = 40.0;  // fades to ambient
+
+    let t = clamp((dist - innerRadius) / (outerRadius - innerRadius), 0.0, 1.0);
+    let camIntensity = 1.0 - t;
+
+    // Dark ambient so far stuff is mostly black
+    let ambient: f32 = 0.05;
+
+    // Between ambient and full light
+    return ambient + camIntensity * (1.0 - ambient);
+}
 @fragment
 fn fs_main(
     @location(0) worldPos: vec3<f32>,
@@ -126,11 +142,11 @@ fn fs_main(
     let selY = select_quadrant(localPos.x, localPos.z, 1u<<4, 1u<<5, 1u<<6, 1u<<7, mask);
     let selX = select_quadrant(localPos.y, localPos.z, 1u<<8, 1u<<9, 1u<<10, 1u<<11, mask);
 
-    let sel      = vec3<f32>(selX, selY, selZ);
-    let edgeGlow = dot(wGlow, sel);
+    let sel        = vec3<f32>(selX, selY, selZ);
+    let edgeGlow   = dot(wGlow, sel);
     let normalEdge = dot(wNorm, vec3<f32>(1.0));
 
-    // Final color
+    // ------- ORIGINAL COLOR (unchanged) -------
     var finalColor: vec3<f32>;
     if (edgeGlow > 0.0) {
         finalColor = mix(baseColor, edgeGlowColor, edgeGlow);
@@ -138,5 +154,29 @@ fn fs_main(
         finalColor = mix(baseColor, edgeColor, normalEdge);
     }
 
-    return vec4<f32>(finalColor, 1.0);
+    // ------- lighting & emission is added *after* this -------
+
+    // 1) Treat this as the base surface color
+    let baseSurface = finalColor;
+
+    // 2) Camera “flashlight” lighting
+    let camLight = camera_light_factor(worldPos);
+    var litSurface = baseSurface * camLight;
+
+    // 3) Local light around glowing edges (soft halo, not extra geometry)
+    //    Uses a slightly wider band but only affects brightness, not color mix.
+    let wInfluence = edge_weights(aPos, 0.45, edgeWidth * 2.5, glowFalloff * 0.5);
+    let edgeInfluence = dot(wInfluence, sel);   // 0..1
+
+    let edgeLightStrength: f32 = 0.7;           // how much edges light nearby tiles
+    let edgeLightFactor = 1.0 + edgeInfluence * edgeLightStrength;
+    litSurface *= edgeLightFactor;
+
+    // 4) Emissive term so edges stay visible in the dark
+    let emissiveStrength: f32 = 2.0;
+    let emissive = edgeGlowColor * edgeGlow * emissiveStrength;
+
+    let finalLitColor = litSurface + emissive;
+
+    return vec4<f32>(finalLitColor, 1.0);
 }
