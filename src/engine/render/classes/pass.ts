@@ -9,6 +9,7 @@ export class Pass {
         device: GPUDevice,
         vertexShader: string,
         fragmentShader: string,
+        format: GPUTextureFormat = 'bgra8unorm'
     ) {
         this.pipeline = device.createRenderPipeline({
             layout: 'auto',
@@ -33,7 +34,7 @@ export class Pass {
                 entryPoint: 'fs_main',
                 targets: [
                     {
-                        format: 'bgra8unorm',
+                        format,
                     },
                 ],
             },
