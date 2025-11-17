@@ -1,3 +1,4 @@
+import { renderData } from '../data';
 import { Pass } from './pass';
 /**
  * @brief Custom Pipeline class implementation to fit the architecture.
@@ -35,7 +36,7 @@ export class Pipeline {
     private createColorTexture(width: number, height: number): GPUTexture {
         return this.device.createTexture({
             size: { width, height },
-            format: 'bgra8unorm', // or rgba16float if you want HDR bloom
+            format: renderData.format!,
             usage:
                 GPUTextureUsage.RENDER_ATTACHMENT | // we draw into it
                 GPUTextureUsage.TEXTURE_BINDING,     // we sample from it later

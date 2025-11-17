@@ -63,28 +63,29 @@ export async function initialize() {
           });
      }
      {
-          postPipeline = new PostPipeline(device!, 1920, 1080);
-
-          const res = await fetch("dist/shaders/post/main.wgsl");
-          const code = await res.text();
-          postPipeline.addPass(PostPassType.MAIN, code, code);
+          const postRes = await fetch("dist/shaders/post/main.wgsl");
+          const postCode = await postRes.text();
+          postPipeline = new PostPipeline(device!, postCode);
+          // postPipeline.addPass(PostPassType.MAIN, code, code);
      }
 }
 
 export function tick(delta: number) {
      const { device, context } = renderData;
      renderData.camera?.update(delta);
-     const commandEncoder = device!.createCommandEncoder();
-     const textureView = context!.getCurrentTexture().createView();
-     const sceneColorView = voxelPipeline.getColorTextureView();
+     if (!device || !context) return;
 
+     const commandEncoder = device.createCommandEncoder();
+
+     // PASS 1: scene → offscreen
+     const sceneColorView = voxelPipeline.getColorTextureView();
      const scenePass = commandEncoder.beginRenderPass({
           colorAttachments: [
                {
                     view: sceneColorView,
                     loadOp: "clear",
                     storeOp: "store",
-                    clearValue: { r: 0.1, g: 0.1, b: 0.15, a: 1.0 },
+                    clearValue: { r: 0.2, g: 0.0, b: 0.0, a: 1.0 }, // red to debug
                },
           ],
           depthStencilAttachment: {
@@ -94,27 +95,25 @@ export function tick(delta: number) {
                depthStoreOp: "store",
           },
      });
-
      voxelPipeline.tick(delta, scenePass);
-
      scenePass.end();
 
-
-
-     const swapTextureView = context!.getCurrentTexture().createView();
-
+     // PASS 2: post → canvas
+     const swapView = context.getCurrentTexture().createView();
      const postPass = commandEncoder.beginRenderPass({
           colorAttachments: [
                {
-                    view: swapTextureView,
+                    view: swapView,
                     loadOp: "clear",
                     storeOp: "store",
-                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    clearValue: { r: 0.0, g: 0.0, b: 0.2, a: 1.0 }, // blue to debug
                },
           ],
      });
+
+     postPipeline.setSourceTextureView(sceneColorView);
      postPipeline.tick(delta, postPass);
      postPass.end();
 
-     device!.queue.submit([commandEncoder.finish()]);
+     device.queue.submit([commandEncoder.finish()]);
 }

@@ -1,26 +1,54 @@
+// src/engine/render/pipelines/post/class.ts
 import { Pipeline } from "../../classes/pipeline";
 import { renderData } from "../../data";
 
-
 export class PostPipeline extends Pipeline {
-    private bindGroupLayout: GPUBindGroupLayout | null = null;
-    private sourceView: GPUTextureView | null = null;
+    private pipeline: GPURenderPipeline;
     private sampler: GPUSampler;
+    private bindGroupLayout: GPUBindGroupLayout;
+    private sourceView: GPUTextureView | null = null;
 
-    constructor(device: GPUDevice, width: number, height: number) {
+    constructor(device: GPUDevice, shaderCode: string) {
         super(device, renderData.canvas!);
+
+        const module = device.createShaderModule({ code: shaderCode });
+
+        this.pipeline = device.createRenderPipeline({
+            layout: "auto",
+            vertex: {
+                module,
+                entryPoint: "vs_main",
+                buffers: [],
+            },
+            fragment: {
+                module,
+                entryPoint: "fs_main",
+                targets: [
+                    {
+                        format: renderData.format!, // ← MUST match canvas format
+                    },
+                ],
+            },
+            primitive: {
+                topology: "triangle-list",
+                cullMode: "none",
+            },
+        });
+
+        this.bindGroupLayout = this.pipeline.getBindGroupLayout(0);
+
         this.sampler = device.createSampler({
             magFilter: "linear",
             minFilter: "linear",
         });
     }
 
-    public override tick(delta: number, passEncoder: GPURenderPassEncoder) {
-        const { device, meshManager, camera } = renderData;
-        const pipeline = this.getPass(0)?.getPipeline();
+    public setSourceTextureView(view: GPUTextureView) {
+        this.sourceView = view;
+    }
 
+    public override tick(delta: number, passEncoder: GPURenderPassEncoder) {
         if (!this.sourceView) return;
-        this.bindGroupLayout = pipeline!.getBindGroupLayout(0);
 
         const bindGroup = this.device.createBindGroup({
             layout: this.bindGroupLayout,
@@ -30,8 +58,8 @@ export class PostPipeline extends Pipeline {
             ],
         });
 
-        passEncoder.setPipeline(pipeline!);
+        passEncoder.setPipeline(this.pipeline);
         passEncoder.setBindGroup(0, bindGroup);
-        passEncoder.draw(3, 1, 0, 0); // fullscreen triangle
+        passEncoder.draw(3, 1, 0, 0);
     }
 }
