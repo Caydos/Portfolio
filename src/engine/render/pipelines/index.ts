@@ -13,10 +13,12 @@ export async function initialize() {
      const { device, context } = renderData;
 
      {
-          voxelPipeline = new VoxelPipeline(device!, 1920, 1080);
-          const res = await fetch("dist/shaders/voxel/main.wgsl");
+          const w = renderData.canvas!.width | 0;
+          const h = renderData.canvas!.height | 0;
+          voxelPipeline = new VoxelPipeline(device!, w, h);
+          const res = await fetch("dist/shaders/voxel/voxel.wgsl");
           const code = await res.text();
-          voxelPipeline.addPass(VoxelPassType.MAIN, code, code);
+          voxelPipeline.addPass(VoxelPassType.MAIN, code, code, "rgba16float");
 
           voxelPipeline.globalUniformBuffer = device!.createBuffer({
                size: 96,
@@ -63,7 +65,7 @@ export async function initialize() {
           });
      }
      {
-          const postRes = await fetch("dist/shaders/post/main.wgsl");
+          const postRes = await fetch("dist/shaders/post/post.wgsl");
           const postCode = await postRes.text();
           postPipeline = new PostPipeline(device!, postCode);
           // postPipeline.addPass(PostPassType.MAIN, code, code);
@@ -71,49 +73,34 @@ export async function initialize() {
 }
 
 export function tick(delta: number) {
-     const { device, context } = renderData;
-     renderData.camera?.update(delta);
-     if (!device || !context) return;
+  const { device, context } = renderData;
+  renderData.camera?.update(delta);
+  if (!device || !context) return;
 
-     const commandEncoder = device.createCommandEncoder();
+  const commandEncoder = device.createCommandEncoder();
 
-     // PASS 1: scene → offscreen
-     const sceneColorView = voxelPipeline.getColorTextureView();
-     const scenePass = commandEncoder.beginRenderPass({
-          colorAttachments: [
-               {
-                    view: sceneColorView,
-                    loadOp: "clear",
-                    storeOp: "store",
-                    clearValue: { r: 0.2, g: 0.0, b: 0.0, a: 1.0 }, // red to debug
-               },
-          ],
-          depthStencilAttachment: {
-               view: voxelPipeline.getDepthTextureView(),
-               depthClearValue: 1.0,
-               depthLoadOp: "clear",
-               depthStoreOp: "store",
-          },
-     });
-     voxelPipeline.tick(delta, scenePass);
-     scenePass.end();
+  // PASS 1: scene -> HDR offscreen
+  const sceneColorView = voxelPipeline.getColorTextureView();
+  const scenePass = commandEncoder.beginRenderPass({
+    colorAttachments: [{
+      view: sceneColorView,
+      loadOp: "clear",
+      storeOp: "store",
+      clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+    }],
+    depthStencilAttachment: {
+      view: voxelPipeline.getDepthTextureView(),
+      depthClearValue: 1.0,
+      depthLoadOp: "clear",
+      depthStoreOp: "store",
+    },
+  });
+  voxelPipeline.tick(delta, scenePass);
+  scenePass.end();
 
-     // PASS 2: post → canvas
-     const swapView = context.getCurrentTexture().createView();
-     const postPass = commandEncoder.beginRenderPass({
-          colorAttachments: [
-               {
-                    view: swapView,
-                    loadOp: "clear",
-                    storeOp: "store",
-                    clearValue: { r: 0.0, g: 0.0, b: 0.2, a: 1.0 }, // blue to debug
-               },
-          ],
-     });
+  // PASS 2+: bloom + composite -> swapchain
+  const swapView = context.getCurrentTexture().createView();
+  postPipeline.encode(commandEncoder, sceneColorView, swapView);
 
-     postPipeline.setSourceTextureView(sceneColorView);
-     postPipeline.tick(delta, postPass);
-     postPass.end();
-
-     device.queue.submit([commandEncoder.finish()]);
+  device.queue.submit([commandEncoder.finish()]);
 }

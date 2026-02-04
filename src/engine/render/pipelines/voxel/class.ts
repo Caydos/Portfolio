@@ -29,7 +29,7 @@ export class VoxelPipeline extends Pipeline {
      public totalTime!: number;
 
      constructor(device: GPUDevice, width: number, height: number) {
-          super(device, renderData.canvas!);
+          super(device, width, height, "rgba16float");
      }
 
      public override tick(delta: number, passEncoder: GPURenderPassEncoder) {
